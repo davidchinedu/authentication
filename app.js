@@ -1,8 +1,8 @@
 require("dotenv").config();
 const express = require("express");
 const app = express();
-const { Client } = require("pg");
-//const {db}= require('@vercel/postgres')
+//const { Client } = require("pg");
+const {db}= require('@vercel/postgres')
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
@@ -10,21 +10,20 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 app.use(express.json());
 
-const database = new Client({
-  user: "postgres",
-  host: "localhost",
-  database: "hngdatabase",
-  password: "180602",
-  port: 5432,
-});
-database
-  .connect()
-  .then(() => {
-    console.log("connected");
-  })
-  .catch((e) => {
-    console.log("failed");
-  });
+// const database = new Client({
+//   user: "postgres",
+//   host: "localhost",
+//   database: "hngdatabase",
+//   password: "180602",
+//   port: 5432,
+// });
+const database= await db.connect()
+//   .then(() => {
+//     console.log("connected");
+//   })
+//   .catch((e) => {
+//     console.log("failed");
+//   });
 
 app.listen(8000, () => {
   console.log("listening");
@@ -34,7 +33,7 @@ app.listen(8000, () => {
 
 //TABLE CREATION
 
- database.query(`CREATE TABLE IF NOT EXISTS Users
+ database.sql(`CREATE TABLE IF NOT EXISTS Users
      (
      userid SERIAL PRIMARY KEY NOT NULL UNIQUE,
 	firstname VARCHAR(30) NOT NULL,
@@ -53,7 +52,7 @@ app.listen(8000, () => {
 
  })
 
-database.query(`CREATE TABLE IF NOT EXISTS organization
+database.sql(`CREATE TABLE IF NOT EXISTS organization
         (
         orgid SERIAL PRIMARY KEY UNIQUE,
     	    name VARCHAR(30) NOT NULL,
@@ -69,7 +68,7 @@ database.query(`CREATE TABLE IF NOT EXISTS organization
 
    })
 
-database.query(`CREATE TABLE IF NOT EXISTS user_org
+database.sql(`CREATE TABLE IF NOT EXISTS user_org
         (
         user_orgid SERIAL PRIMARY KEY UNIQUE,
     	   owneruserid INTEGER REFERENCES Users(userid),
@@ -118,7 +117,7 @@ app.get('/', (req,response)=>{
         let accessToken;
         const {firstName, lastName, email, password, phone}= req.body
         const {description}= req.body
-        database.query(
+        database.sql(
             ` SELECT * FROM users WHERE email=$1 `,
             [email],
             (err, res) => {
@@ -143,13 +142,13 @@ app.get('/', (req,response)=>{
   const hash = await bcrypt.hash(password, salt);
   console.log(hash)
   
-        database.query(`INSERT INTO Users (firstname,lastname,email,password,phone)
+        database.sql(`INSERT INTO Users (firstname,lastname,email,password,phone)
             VALUES ($1,$2, $3, $4, $5)`, [firstName,lastName,email,hash,phone]
         )
         .then(()=>{
             console.log("inserted")
 
-            database.query(
+            database.sql(
                 ` SELECT * FROM users WHERE email=$1 `,
                 [email],
                 (err, res) => {
@@ -166,7 +165,7 @@ app.get('/', (req,response)=>{
 
 
 
-            database.query(`INSERT INTO organization (name,description)
+            database.sql(`INSERT INTO organization (name,description)
                 VALUES ($1, $2)`, [`${firstName}'s organization`,description]
             )
             .then(()=>{
@@ -177,7 +176,7 @@ app.get('/', (req,response)=>{
                 console.log("organization insertion failed")
             })
 
-            database.query(
+            database.sql(
                 ` SELECT * FROM organization WHERE name=$1 `,
                 [`${firstName}'s organization`],
                 (err, res) => {
@@ -186,7 +185,7 @@ app.get('/', (req,response)=>{
                 
                   } else {
                      
-                    database.query(`INSERT INTO user_org (owneruserid, organid)
+                    database.sql(`INSERT INTO user_org (owneruserid, organid)
                         VALUES ($1, $2)`, [user.name,res.rows[0].orgid]
                     )
                     .then(()=>{
@@ -237,7 +236,7 @@ app.get('/', (req,response)=>{
 // //done
 app.post("/auth/login", async (req, response) => {
   const { email, password } = req.body;
-  database.query(
+  database.sql(
     ` SELECT * FROM Users WHERE email=$1`,
     [email],
     async (err, res) => {
@@ -289,7 +288,7 @@ app.get("/api/users/:id", authenticateToken,(req, response) => {
   const {id}= req.params
   let user_org_arr = [];
   let user_org_arr2 = [];
-  database.query(
+  database.sql(
     `SELECT * FROM user_org WHERE owneruserid=$1 OR otheruserid=$1`,
     [user],
     (err, res) => {
@@ -310,7 +309,7 @@ app.get("/api/users/:id", authenticateToken,(req, response) => {
         }
         const len2 = user_org_arr.length;
         for (let i = 0; i < len2; i++) {
-          database.query(
+          database.sql(
             `SELECT * FROM user_org WHERE organid=$1 AND (owneruserid=$2 OR otheruserid=$2)`,
             [user_org_arr[i], id],
             (err, res) => {
@@ -338,7 +337,7 @@ else{response.send({
             }
 
             if(i==(len2-1)){
-  database.query(
+  database.sql(
     `SELECT * FROM Users WHERE userId=$1`,
     [user_org_arr2[0]],
     (err, res) => {
@@ -377,7 +376,7 @@ app.get("/api/organisations",  authenticateToken,async(req, response) => {
   const user=req.user.name
   let user_org_arr = [];
   let org_arr = [];
-   database.query(
+   database.sql(
     `SELECT * FROM user_org WHERE owneruserid=$1 OR otheruserid=$1`,
     [user],
      (err, res) => {
@@ -399,7 +398,7 @@ app.get("/api/organisations",  authenticateToken,async(req, response) => {
         }
        const len2 = user_org_arr.length;
        for(let i = 0; i < len2; i++) {
-          database.query(
+          database.sql(
             `SELECT * FROM organization WHERE orgid=$1`,
             [user_org_arr[i]],
             (err, res) => {
@@ -429,7 +428,7 @@ app.get("/api/organisations",  authenticateToken,async(req, response) => {
 //completed  
 app.get("/api/organisations/:orgId", authenticateToken, (req, response) => {
   const { orgId } = req.params;
-  database.query(
+  database.sql(
     ` SELECT * FROM organization WHERE orgId=$1 `,
     [orgId],
     (err, res) => {
@@ -469,7 +468,7 @@ app.get("/api/organisations/:orgId", authenticateToken, (req, response) => {
 app.post("/api/organisations",authenticateToken,  (req, response) => {
   const { name, description } = req.body;
  const user = req.user.name;
-  database.query(
+  database.sql(
       `INSERT INTO organization (name,description)
                 VALUES ($1, $2)`,
       [name, description]
@@ -478,7 +477,7 @@ app.post("/api/organisations",authenticateToken,  (req, response) => {
       console.log("organization inserted");
 
 
-      database.query(
+      database.sql(
         ` SELECT * FROM organization WHERE name=$1 `,
         [name],
         (err, res) => {
@@ -488,7 +487,7 @@ app.post("/api/organisations",authenticateToken,  (req, response) => {
           } else {
 
 
-      database.query(
+      database.sql(
           `INSERT INTO user_org (owneruserid, organid)
                     VALUES ($1, $2)`,
           [user, res.rows[0].orgid]
@@ -533,7 +532,7 @@ app.post("/api/organisations/:orgId/users", (req, res) => {
   const { orgId } = req.params;
   const { userId } = req.body;
   database
-    .query(
+    .sql(
       `INSERT INTO user_org (otheruserid, organid)
             VALUES ($1, $2)`,
       [userId, orgId]
