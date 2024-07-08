@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const app = express();
 const { Client } = require("pg");
+//const {db}= require('@vercel/postgres')
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
@@ -33,7 +34,7 @@ app.listen(8000, () => {
 
 //TABLE CREATION
 
- database.query(`CREATE TABLE Users
+ database.query(`CREATE TABLE IF NOT EXISTS Users
      (
      userid SERIAL PRIMARY KEY NOT NULL UNIQUE,
 	firstname VARCHAR(30) NOT NULL,
@@ -52,7 +53,7 @@ app.listen(8000, () => {
 
  })
 
-database.query(`CREATE TABLE organization
+database.query(`CREATE TABLE IF NOT EXISTS organization
         (
         orgid SERIAL PRIMARY KEY UNIQUE,
     	    name VARCHAR(30) NOT NULL,
@@ -68,7 +69,7 @@ database.query(`CREATE TABLE organization
 
    })
 
-database.query(`CREATE TABLE user_org
+database.query(`CREATE TABLE IF NOT EXISTS user_org
         (
         user_orgid SERIAL PRIMARY KEY UNIQUE,
     	   owneruserid INTEGER REFERENCES Users(userid),
