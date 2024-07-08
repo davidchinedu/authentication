@@ -104,7 +104,11 @@ function authenticateToken(req, res, next) {
   });
 }
 
-
+app.get('/', (req,response)=>{
+    response.send({
+        welcome: "you are welcome to my authentication app. you may proceed :)"
+    })
+})
 
 
 //done
